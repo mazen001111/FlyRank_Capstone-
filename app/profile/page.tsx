@@ -10,6 +10,7 @@ export default function ProfilePage() {
           eyebrow="User profile"
           title="Profile placeholder"
           description="Reserved for student preferences, learning goals, and account settings later on."
+          as="h1"
         />
         <div className="mt-10 grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
           <Card>

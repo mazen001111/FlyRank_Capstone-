@@ -1,4 +1,5 @@
 import Container from "@/components/Container";
+import Link from "next/link";
 import { navigationLinks, siteName } from "@/lib/site";
 
 export default function Footer() {
@@ -8,16 +9,16 @@ export default function Footer() {
         <div>
           <p className="text-lg font-semibold text-foreground">{siteName}</p>
           <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
-            Capstone skeleton for organizing study materials, practicing with quizzes, and preparing for an AI tutor experience.
+            AI Study Assistant for organizing study materials, generating summaries and quizzes, and supporting guided study.
           </p>
         </div>
-        <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
+        <nav aria-label="Footer" className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
           {navigationLinks.map((link) => (
-            <a key={link.href} href={link.href} className="transition hover:text-foreground">
+            <Link key={link.href} href={link.href} className="transition hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
               {link.label}
-            </a>
+            </Link>
           ))}
-        </div>
+        </nav>
       </Container>
     </footer>
   );
