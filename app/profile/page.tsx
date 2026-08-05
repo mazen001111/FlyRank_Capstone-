@@ -1,6 +1,13 @@
+import type { Metadata } from "next";
 import Card from "@/components/Card";
 import Container from "@/components/Container";
 import SectionHeader from "@/components/SectionHeader";
+
+export const metadata: Metadata = {
+  title: "Profile",
+  description: "Student profile and preference settings placeholder for AI Study Assistant.",
+  alternates: { canonical: "/profile" },
+};
 
 export default function ProfilePage() {
   return (

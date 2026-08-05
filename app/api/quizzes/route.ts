@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { aiFailureResponse } from "@/lib/api-error";
 import { generateQuizFromTopic } from "@/lib/ai-service";
 
 export async function POST(request: Request) {
@@ -20,11 +21,10 @@ export async function POST(request: Request) {
     const result = await generateQuizFromTopic(input);
     return NextResponse.json(result);
   } catch (error) {
-    return NextResponse.json(
-      {
-        message: error instanceof Error && error.message.includes("invalid") ? "The AI returned an invalid quiz response. Please try again." : "Quiz generation failed. Please try again.",
-      },
-      { status: 502 },
+    return aiFailureResponse(
+      error,
+      "Quiz generation failed. Please try again.",
+      "The AI returned an invalid quiz response. Please try again.",
     );
   }
 }

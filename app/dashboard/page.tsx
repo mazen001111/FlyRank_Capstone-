@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+import Link from "next/link";
 import Card from "@/components/Card";
 import Container from "@/components/Container";
 import SectionHeader from "@/components/SectionHeader";
@@ -26,6 +28,12 @@ const navigationCards = [
   { title: "Tutor", description: "Get targeted explanations", href: "/tutor" },
 ] as const;
 
+export const metadata: Metadata = {
+  title: "Dashboard",
+  description: "Review study activity, saved summaries, quiz progress, and jump into AI study tools.",
+  alternates: { canonical: "/dashboard" },
+};
+
 export default function DashboardPage() {
   return (
     <section className="py-16 sm:py-20">
@@ -33,7 +41,7 @@ export default function DashboardPage() {
         <SectionHeader
           eyebrow="Student dashboard"
           title="Your study progress at a glance"
-          description="Track recent learning activity, review saved summaries, and jump into the next study action quickly."
+          description="Sample dashboard content for the capstone demo. Track recent learning activity, review saved summaries, and jump into the next study action quickly."
           as="h1"
         />
 
@@ -78,14 +86,15 @@ export default function DashboardPage() {
             <h2 className="text-2xl font-semibold text-foreground">Navigation cards</h2>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
               {navigationCards.map((card) => (
-                <a
+                <Link
                   key={card.title}
                   href={card.href}
+                  prefetch
                   className="rounded-2xl border border-border bg-background p-4 transition hover:-translate-y-0.5 hover:border-primary/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 >
                   <p className="text-lg font-semibold text-foreground">{card.title}</p>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">{card.description}</p>
-                </a>
+                </Link>
               ))}
             </div>
           </Card>

@@ -1,45 +1,39 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useRef, useState } from "react";
+import type { FormEvent } from "react";
 import Card from "@/components/Card";
 import Skeleton from "@/components/Skeleton";
 import { requestSummary } from "@/lib/ai-client";
 import type { SummaryResult } from "@/lib/ai-types";
 
 type SummaryState =
-  | ({ status: "idle" } & SummaryResult)
-  | ({ status: "loading" } & SummaryResult)
+  | { status: "idle" }
+  | { status: "loading" }
   | ({ status: "success" } & SummaryResult)
-  | ({ status: "error" } & SummaryResult & { message: string });
+  | { status: "error"; message: string };
 
 const notesFieldId = "summary-notes";
 const summaryStatusId = "summary-status";
 const summaryHelpId = "summary-help";
+const defaultNotes = "Paste your class notes, reading passage, or lecture excerpt here.";
 
 export default function SummaryForm() {
-  const [notes, setNotes] = useState("Paste your class notes, reading passage, or lecture excerpt here.");
-  const [state, setState] = useState<SummaryState>({
-    status: "idle",
-    summary: "Paste notes to generate a study-ready summary.",
-    keyPoints: [],
-    importantConcepts: [],
-  });
+  const notesRef = useRef<HTMLTextAreaElement>(null);
+  const [state, setState] = useState<SummaryState>({ status: "idle" });
 
   async function submitSummary() {
-    const trimmedNotes = notes.trim();
+    const trimmedNotes = notesRef.current?.value.trim() ?? "";
 
     if (trimmedNotes.length < 20) {
       setState({
         status: "error",
-        summary: "No summary available.",
-        keyPoints: [],
-        importantConcepts: [],
         message: "Enter at least 20 characters of notes to generate a useful summary.",
       });
       return;
     }
 
-    setState({ status: "loading", summary: "Generating summary...", keyPoints: [], importantConcepts: [] });
+    setState({ status: "loading" });
 
     try {
       const result = await requestSummary(trimmedNotes);
@@ -52,9 +46,6 @@ export default function SummaryForm() {
     } catch (error) {
       setState({
         status: "error",
-        summary: "Summary generation failed.",
-        keyPoints: [],
-        importantConcepts: [],
         message: error instanceof Error ? error.message : "Something went wrong while generating the summary.",
       });
     }
@@ -78,8 +69,9 @@ export default function SummaryForm() {
             Text input area
             <textarea
               id={notesFieldId}
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
+              name="notes"
+              ref={notesRef}
+              defaultValue={defaultNotes}
               rows={12}
               required
               minLength={20}

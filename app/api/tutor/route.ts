@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { aiFailureResponse } from "@/lib/api-error";
 import { generateTutorExplanation } from "@/lib/ai-service";
 import type { StudyLevel } from "@/lib/ai-types";
 
@@ -29,11 +30,10 @@ export async function POST(request: Request) {
     const result = await generateTutorExplanation({ subject, difficulty: difficultyValue as StudyLevel, question });
     return NextResponse.json(result);
   } catch (error) {
-    return NextResponse.json(
-      {
-        message: error instanceof Error && error.message.includes("invalid") ? "The AI returned an invalid tutor response. Please try again." : "Tutor explanation failed. Please try again.",
-      },
-      { status: 502 },
+    return aiFailureResponse(
+      error,
+      "Tutor explanation failed. Please try again.",
+      "The AI returned an invalid tutor response. Please try again.",
     );
   }
 }

@@ -1,6 +1,18 @@
+import type { Metadata } from "next";
+import dynamic from "next/dynamic";
 import Container from "@/components/Container";
 import SectionHeader from "@/components/SectionHeader";
-import QuizGenerator from "@/components/quiz-generator";
+import ToolLoadingFallback from "@/components/ToolLoadingFallback";
+
+const QuizGenerator = dynamic(() => import("@/components/quiz-generator"), {
+  loading: () => <ToolLoadingFallback />,
+});
+
+export const metadata: Metadata = {
+  title: "Quiz Generator",
+  description: "Turn a topic or notes into AI-generated practice questions with answers and explanations.",
+  alternates: { canonical: "/quizzes" },
+};
 
 export default function QuizzesPage() {
   return (

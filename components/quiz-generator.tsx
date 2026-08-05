@@ -1,39 +1,39 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useRef, useState } from "react";
+import type { FormEvent } from "react";
 import Card from "@/components/Card";
 import Skeleton from "@/components/Skeleton";
 import { requestQuiz } from "@/lib/ai-client";
 import type { QuizQuestion } from "@/lib/ai-types";
 
 type QuizState =
-  | { status: "idle"; questions: QuizQuestion[] }
-  | { status: "loading"; questions: QuizQuestion[] }
+  | { status: "idle" }
+  | { status: "loading" }
   | { status: "success"; questions: QuizQuestion[] }
-  | { status: "error"; questions: QuizQuestion[]; message: string };
+  | { status: "error"; message: string };
 
-const initialQuestions: QuizQuestion[] = [];
 const quizInputId = "quiz-input";
 const quizStatusId = "quiz-status";
 const quizHelpId = "quiz-help";
+const defaultInput = "Cell biology and how plant cells differ from animal cells.";
 
 export default function QuizGenerator() {
-  const [input, setInput] = useState("Cell biology and how plant cells differ from animal cells.");
-  const [state, setState] = useState<QuizState>({ status: "idle", questions: initialQuestions });
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [state, setState] = useState<QuizState>({ status: "idle" });
 
   async function submitQuiz() {
-    const trimmedInput = input.trim();
+    const trimmedInput = inputRef.current?.value.trim() ?? "";
 
     if (trimmedInput.length < 10) {
       setState({
         status: "error",
-        questions: [],
         message: "Enter at least 10 characters of topic or notes before generating a quiz.",
       });
       return;
     }
 
-    setState({ status: "loading", questions: [] });
+    setState({ status: "loading" });
 
     try {
       const result = await requestQuiz(trimmedInput);
@@ -41,7 +41,6 @@ export default function QuizGenerator() {
     } catch (error) {
       setState({
         status: "error",
-        questions: [],
         message: error instanceof Error ? error.message : "Quiz generation failed. Please try again.",
       });
     }
@@ -60,8 +59,9 @@ export default function QuizGenerator() {
             Topic/notes input
             <textarea
               id={quizInputId}
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
+              name="input"
+              ref={inputRef}
+              defaultValue={defaultInput}
               rows={10}
               required
               minLength={10}

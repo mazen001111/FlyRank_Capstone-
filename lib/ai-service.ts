@@ -1,125 +1,159 @@
 import "server-only";
 
+import { GoogleGenAI, Type } from "@google/genai";
 import {
+  isQuizResult,
+  isSummaryResult,
+  isTutorResult,
   type QuizResult,
   type StudyLevel,
   type SummaryResult,
   type TutorResult,
 } from "@/lib/ai-types";
 
-type OpenAIChatResponse = {
-  choices?: Array<{
-    message?: {
-      content?: string | null;
-    };
-  }>;
-};
-
 type CompletionKind = "summary" | "quiz" | "tutor";
 
-const openAiApiKey = process.env.OPENAI_API_KEY;
-const openAiModel = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
-const openAiBaseUrl = process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1";
+const geminiApiKey = process.env.GEMINI_API_KEY;
+/** Free-tier friendly default; override with GEMINI_MODEL if needed. */
+const geminiModel = process.env.GEMINI_MODEL ?? "gemini-flash-latest";
 
-function ensureOpenAiConfig() {
-  if (!openAiApiKey) {
-    throw new Error("OPENAI_API_KEY is not configured.");
+function getClient() {
+  if (!geminiApiKey) {
+    throw new Error("GEMINI_API_KEY is not configured.");
   }
+
+  return new GoogleGenAI({ apiKey: geminiApiKey });
 }
 
-function buildSystemPrompt(kind: CompletionKind) {
+function buildInstruction(kind: CompletionKind) {
   if (kind === "summary") {
-    return "You are an AI study assistant that converts student notes into a study summary. Return only valid JSON with summary, keyPoints, and importantConcepts. Focus on the learning task and do not act like a general chatbot.";
+    return "You are an AI study assistant that converts student notes into a study summary. Focus on the learning task and do not act like a general chatbot. Return only structured JSON.";
   }
 
   if (kind === "quiz") {
-    return "You are an AI study assistant that generates multiple-choice quizzes from a topic or notes. Return only valid JSON with a questions array. Each question must include question, options, correctAnswer, and explanation. Focus on the learning task and do not act like a general chatbot.";
+    return "You are an AI study assistant that generates multiple-choice quizzes from a topic or notes. Prefer 3-5 high-quality questions. Focus on the learning task and do not act like a general chatbot. Return only structured JSON.";
   }
 
-  return "You are an AI study assistant that explains a subject question for a student. Return only valid JSON with explanation containing overview, keyIdea, stepByStep, example, and nextStep. Focus on the learning task and do not act like a general chatbot.";
+  return "You are an AI study assistant that explains a subject question for a student. Provide a structured explanation, concrete examples, and key takeaways. Focus on the learning task and do not act like a general chatbot. Return only structured JSON.";
 }
 
-async function runCompletion(kind: CompletionKind, userContent: string) {
-  ensureOpenAiConfig();
+const summarySchema = {
+  type: Type.OBJECT,
+  properties: {
+    summary: { type: Type.STRING },
+    keyPoints: { type: Type.ARRAY, items: { type: Type.STRING } },
+    importantConcepts: { type: Type.ARRAY, items: { type: Type.STRING } },
+  },
+  required: ["summary", "keyPoints", "importantConcepts"],
+};
 
-  const response = await fetch(`${openAiBaseUrl}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${openAiApiKey}`,
+const quizSchema = {
+  type: Type.OBJECT,
+  properties: {
+    questions: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          question: { type: Type.STRING },
+          options: { type: Type.ARRAY, items: { type: Type.STRING } },
+          correctAnswer: { type: Type.STRING },
+          explanation: { type: Type.STRING },
+        },
+        required: ["question", "options", "correctAnswer", "explanation"],
+      },
     },
-    body: JSON.stringify({
-      model: openAiModel,
-      temperature: 0.2,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: buildSystemPrompt(kind) },
-        { role: "user", content: userContent },
-      ],
-    }),
-  });
+  },
+  required: ["questions"],
+};
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`OpenAI request failed with status ${response.status}: ${errorText}`);
-  }
+const tutorSchema = {
+  type: Type.OBJECT,
+  properties: {
+    explanation: { type: Type.STRING },
+    examples: { type: Type.ARRAY, items: { type: Type.STRING } },
+    keyTakeaways: { type: Type.ARRAY, items: { type: Type.STRING } },
+  },
+  required: ["explanation", "examples", "keyTakeaways"],
+};
 
-  const payload = (await response.json()) as OpenAIChatResponse;
-  const content = payload.choices?.[0]?.message?.content;
+function schemaFor(kind: CompletionKind) {
+  if (kind === "summary") return summarySchema;
+  if (kind === "quiz") return quizSchema;
+  return tutorSchema;
+}
 
-  if (!content || typeof content !== "string") {
-    throw new Error("OpenAI response did not include message content.");
-  }
+async function runGeminiJson(kind: CompletionKind, userContent: string): Promise<unknown> {
+  const ai = getClient();
 
   try {
-    return JSON.parse(content) as unknown;
-  } catch {
-    throw new Error("OpenAI returned invalid JSON.");
+    const response = await ai.models.generateContent({
+      model: geminiModel,
+      contents: userContent,
+      config: {
+        systemInstruction: buildInstruction(kind),
+        temperature: 0.2,
+        responseMimeType: "application/json",
+        responseSchema: schemaFor(kind),
+      },
+    });
+
+    const text = response.text?.trim();
+
+    if (!text) {
+      throw new Error("Gemini returned an empty response.");
+    }
+
+    try {
+      return JSON.parse(text) as unknown;
+    } catch {
+      throw new Error("Gemini returned invalid JSON.");
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message.includes("GEMINI_API_KEY")) {
+        throw error;
+      }
+
+      const lower = error.message.toLowerCase();
+      if (lower.includes("429") || lower.includes("quota") || lower.includes("resource_exhausted")) {
+        throw new Error("Gemini free-tier quota was exceeded. Please wait a moment and try again.");
+      }
+
+      if (lower.includes("fetch failed") || lower.includes("econnreset") || lower.includes("etimedout") || lower.includes("network error")) {
+        throw new Error("Gemini is temporarily unavailable. Please try again in a moment.");
+      }
+
+      // Prefer a clean message when the SDK embeds a JSON error payload.
+      const jsonMatch = error.message.match(/\{[\s\S]*"error"[\s\S]*\}$/);
+      if (jsonMatch) {
+        try {
+          const payload = JSON.parse(jsonMatch[0]) as { error?: { message?: string; status?: string } };
+          if (payload.error?.status === "RESOURCE_EXHAUSTED" || payload.error?.message?.toLowerCase().includes("quota")) {
+            throw new Error("Gemini free-tier quota was exceeded. Please wait a moment and try again.");
+          }
+          if (payload.error?.message) {
+            throw new Error(payload.error.message);
+          }
+        } catch (inner) {
+          if (inner instanceof Error && !inner.message.startsWith("{") && inner.message !== error.message) {
+            throw inner;
+          }
+        }
+      }
+
+      throw new Error(error.message);
+    }
+
+    throw new Error("Gemini is temporarily unavailable. Please try again in a moment.");
   }
-}
-
-function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((item) => typeof item === "string");
-}
-
-function isSummaryResult(value: unknown): value is SummaryResult {
-  if (!value || typeof value !== "object") return false;
-  const candidate = value as Partial<SummaryResult>;
-  return typeof candidate.summary === "string" && isStringArray(candidate.keyPoints) && isStringArray(candidate.importantConcepts);
-}
-
-function isQuizResult(value: unknown): value is QuizResult {
-  if (!value || typeof value !== "object") return false;
-  const candidate = value as Partial<QuizResult>;
-  return (
-    Array.isArray(candidate.questions) &&
-    candidate.questions.every(
-      (question) =>
-        question &&
-        typeof question.question === "string" &&
-        isStringArray(question.options) &&
-        typeof question.correctAnswer === "string" &&
-        typeof question.explanation === "string",
-    )
-  );
-}
-
-function isTutorResult(value: unknown): value is TutorResult {
-  if (!value || typeof value !== "object") return false;
-  const candidate = value as Partial<TutorResult>;
-  return (
-    !!candidate.explanation &&
-    typeof candidate.explanation === "object" &&
-    typeof candidate.explanation.overview === "string" &&
-    typeof candidate.explanation.keyIdea === "string" &&
-    isStringArray(candidate.explanation.stepByStep) &&
-    typeof candidate.explanation.example === "string" &&
-    typeof candidate.explanation.nextStep === "string"
-  );
 }
 
 export async function generateSummaryFromNotes(notes: string): Promise<SummaryResult> {
-  const result = await runCompletion("summary", `Summarize these student notes into study-ready content.\n\nNotes:\n${notes}`);
+  const result = await runGeminiJson(
+    "summary",
+    `Summarize these student notes into study-ready content with a concise summary, key points, and important concepts.\n\nNotes:\n${notes}`,
+  );
 
   if (!isSummaryResult(result)) {
     throw new Error("AI returned an invalid summary payload.");
@@ -129,7 +163,10 @@ export async function generateSummaryFromNotes(notes: string): Promise<SummaryRe
 }
 
 export async function generateQuizFromTopic(input: string): Promise<QuizResult> {
-  const result = await runCompletion("quiz", `Generate a study quiz from this topic or notes.\n\nInput:\n${input}`);
+  const result = await runGeminiJson(
+    "quiz",
+    `Generate a study quiz from this topic or notes. Each question needs options, a correctAnswer that matches one option, and an explanation.\n\nInput:\n${input}`,
+  );
 
   if (!isQuizResult(result)) {
     throw new Error("AI returned an invalid quiz payload.");
@@ -143,9 +180,15 @@ export async function generateTutorExplanation(params: {
   difficulty: StudyLevel;
   question: string;
 }): Promise<TutorResult> {
-  const result = await runCompletion(
+  const result = await runGeminiJson(
     "tutor",
-    [`Subject: ${params.subject}`, `Difficulty: ${params.difficulty}`, `Question: ${params.question}`].join("\n"),
+    [
+      `Subject: ${params.subject}`,
+      `Difficulty: ${params.difficulty}`,
+      `Question: ${params.question}`,
+      "",
+      "Return a structured explanation, 1-3 concrete examples, and clear key takeaways for studying.",
+    ].join("\n"),
   );
 
   if (!isTutorResult(result)) {

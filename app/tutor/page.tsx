@@ -1,6 +1,18 @@
+import type { Metadata } from "next";
+import dynamic from "next/dynamic";
 import Container from "@/components/Container";
 import SectionHeader from "@/components/SectionHeader";
-import TutorPanel from "@/components/tutor-panel";
+import ToolLoadingFallback from "@/components/ToolLoadingFallback";
+
+const TutorPanel = dynamic(() => import("@/components/tutor-panel"), {
+  loading: () => <ToolLoadingFallback />,
+});
+
+export const metadata: Metadata = {
+  title: "AI Tutor",
+  description: "Ask study questions and get structured AI explanations tailored to subject and difficulty.",
+  alternates: { canonical: "/tutor" },
+};
 
 export default function TutorPage() {
   return (

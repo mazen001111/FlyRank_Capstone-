@@ -17,16 +17,10 @@ export type QuizResult = {
   questions: QuizQuestion[];
 };
 
-export type TutorExplanation = {
-  overview: string;
-  keyIdea: string;
-  stepByStep: string[];
-  example: string;
-  nextStep: string;
-};
-
 export type TutorResult = {
-  explanation: TutorExplanation;
+  explanation: string;
+  examples: string[];
+  keyTakeaways: string[];
 };
 
 export function isStringArray(value: unknown): value is string[] {
@@ -59,13 +53,8 @@ export function isTutorResult(value: unknown): value is TutorResult {
   if (!value || typeof value !== "object") return false;
   const candidate = value as Partial<TutorResult>;
   return (
-    !!candidate.explanation &&
-    typeof candidate.explanation === "object" &&
-    typeof candidate.explanation.overview === "string" &&
-    typeof candidate.explanation.keyIdea === "string" &&
-    isStringArray(candidate.explanation.stepByStep) &&
-    typeof candidate.explanation.example === "string" &&
-    typeof candidate.explanation.nextStep === "string"
+    typeof candidate.explanation === "string" &&
+    isStringArray(candidate.examples) &&
+    isStringArray(candidate.keyTakeaways)
   );
 }
-

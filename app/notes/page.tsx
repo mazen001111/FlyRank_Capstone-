@@ -1,6 +1,18 @@
+import type { Metadata } from "next";
+import dynamic from "next/dynamic";
 import Container from "@/components/Container";
 import SectionHeader from "@/components/SectionHeader";
-import SummaryForm from "@/components/summary-form";
+import ToolLoadingFallback from "@/components/ToolLoadingFallback";
+
+const SummaryForm = dynamic(() => import("@/components/summary-form"), {
+  loading: () => <ToolLoadingFallback />,
+});
+
+export const metadata: Metadata = {
+  title: "Notes Summarizer",
+  description: "Paste class notes or reading content and generate a concise AI study summary.",
+  alternates: { canonical: "/notes" },
+};
 
 export default function NotesPage() {
   return (

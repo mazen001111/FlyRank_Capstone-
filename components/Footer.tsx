@@ -14,7 +14,12 @@ export default function Footer() {
         </div>
         <nav aria-label="Footer" className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
           {navigationLinks.map((link) => (
-            <Link key={link.href} href={link.href} className="transition hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+            <Link
+              key={link.href}
+              href={link.href}
+              prefetch
+              className="transition hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
               {link.label}
             </Link>
           ))}

@@ -1,5 +1,3 @@
-"use client";
-
 import { isQuizResult, isSummaryResult, isTutorResult, type QuizResult, type SummaryResult, type TutorResult } from "@/lib/ai-types";
 
 type RequestOptions<T> = {
@@ -56,8 +54,10 @@ async function requestWithRetry<T>({ input, init, validate, invalidMessage }: Re
       return payload;
     } catch (error) {
       lastError = error instanceof Error ? error : new Error("Something went wrong while contacting the AI service.");
-      if (attempt === 0) {
-        continue;
+
+      // Retry only transient network failures. HTTP/validation errors already handled above.
+      if (!(error instanceof TypeError) || attempt > 0) {
+        throw lastError;
       }
     }
   }

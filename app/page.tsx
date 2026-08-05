@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import ButtonLink from "@/components/ButtonLink";
 import Card from "@/components/Card";
 import Container from "@/components/Container";
@@ -18,12 +19,18 @@ const features = [
   },
 ] as const;
 
+export const metadata: Metadata = {
+  title: "Home",
+  description: "Turn study materials into summaries, quizzes, and explanations with AI Study Assistant.",
+  alternates: { canonical: "/" },
+};
+
 export default function HomePage() {
   return (
     <>
       <section className="border-b border-border/50">
         <Container className="relative overflow-hidden py-20 sm:py-24 lg:py-28">
-          <div className="absolute inset-0 -z-10 bg-hero-grid bg-grid opacity-40" />
+          <div className="absolute inset-0 -z-10 bg-hero-grid bg-grid opacity-40" aria-hidden="true" />
           <div className="grid gap-12 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
             <div className="max-w-2xl">
               <p className="text-sm font-semibold uppercase tracking-[0.24em] text-muted-foreground">AI Study Assistant</p>
